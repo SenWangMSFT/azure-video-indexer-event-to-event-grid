@@ -1,0 +1,284 @@
+{
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+      "actions": {
+        "HTTP": {
+          "type": "Http",
+          "inputs": {
+            "uri": "https://api.videoindexer.ai/trial/Accounts/ACCOUNT-ID-HERE/Videos",
+            "method": "GET",
+            "headers": {
+              "Authorization": "Bearer YOUR-KEY-HERE"
+            }
+          },
+          "runAfter": {},
+          "runtimeConfiguration": {
+            "contentTransfer": {
+              "transferMode": "Chunked"
+            }
+          }
+        },
+        "Parse_JSON": {
+          "type": "ParseJson",
+          "inputs": {
+            "content": "@body('HTTP')\n",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "results": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "accountId": {
+                        "type": "string"
+                      },
+                      "id": {
+                        "type": "string"
+                      },
+                      "partition": {},
+                      "externalId": {},
+                      "metadata": {},
+                      "name": {
+                        "type": "string"
+                      },
+                      "description": {},
+                      "created": {
+                        "type": "string"
+                      },
+                      "lastModified": {
+                        "type": "string"
+                      },
+                      "lastIndexed": {
+                        "type": "string"
+                      },
+                      "privacyMode": {
+                        "type": "string"
+                      },
+                      "userName": {
+                        "type": "string"
+                      },
+                      "isOwned": {
+                        "type": "boolean"
+                      },
+                      "isBase": {
+                        "type": "boolean"
+                      },
+                      "hasSourceVideoFile": {
+                        "type": "boolean"
+                      },
+                      "state": {
+                        "type": "string"
+                      },
+                      "moderationState": {
+                        "type": "string"
+                      },
+                      "reviewState": {
+                        "type": "string"
+                      },
+                      "processingProgress": {
+                        "type": "string"
+                      },
+                      "durationInSeconds": {
+                        "type": "integer"
+                      },
+                      "thumbnailVideoId": {
+                        "type": "string"
+                      },
+                      "thumbnailId": {
+                        "type": "string"
+                      },
+                      "searchMatches": {
+                        "type": "array"
+                      },
+                      "indexingPreset": {
+                        "type": "string"
+                      },
+                      "streamingPreset": {
+                        "type": "string"
+                      },
+                      "sourceLanguage": {
+                        "type": "string"
+                      },
+                      "sourceLanguages": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "personModelId": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "accountId",
+                      "id",
+                      "partition",
+                      "externalId",
+                      "metadata",
+                      "name",
+                      "description",
+                      "created",
+                      "lastModified",
+                      "lastIndexed",
+                      "privacyMode",
+                      "userName",
+                      "isOwned",
+                      "isBase",
+                      "hasSourceVideoFile",
+                      "state",
+                      "moderationState",
+                      "reviewState",
+                      "processingProgress",
+                      "durationInSeconds",
+                      "thumbnailVideoId",
+                      "thumbnailId",
+                      "searchMatches",
+                      "indexingPreset",
+                      "streamingPreset",
+                      "sourceLanguage",
+                      "sourceLanguages",
+                      "personModelId"
+                    ]
+                  }
+                },
+                "nextPage": {
+                  "type": "object",
+                  "properties": {
+                    "pageSize": {
+                      "type": "integer"
+                    },
+                    "skip": {
+                      "type": "integer"
+                    },
+                    "done": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "runAfter": {
+            "HTTP": [
+              "SUCCEEDED"
+            ]
+          }
+        },
+        "Condition": {
+          "type": "If",
+          "expression": {
+            "and": [
+              {
+                "equals": [
+                  "@first(body('Parse_JSON')?['results'])?['state']",
+                  "Processed"
+                ]
+              }
+            ]
+          },
+          "actions": {
+            "HTTP_1": {
+              "type": "Http",
+              "inputs": {
+                "uri": "https://testtopic.canadaeast-1.eventgrid.azure.net/api/events",
+                "method": "POST",
+                "headers": {
+                  "aeg-sas-key": "YOUR-KEY-HERE"
+                },
+                "body": [
+                  {
+                    "id": "unique-id-for-event",
+                    "eventType": "VideoIndexer.Processed",
+                    "subject": "/videoindexer/videos/video-id",
+                    "eventTime": "2024-06-25T19:42:20Z",
+                    "data": {
+                      "videoId": "video-id",
+                      "state": "Processed",
+                      "details": "The video has been processed successfully."
+                    },
+                    "dataVersion": "1.0"
+                  }
+                ]
+              },
+              "runtimeConfiguration": {
+                "contentTransfer": {
+                  "transferMode": "Chunked"
+                }
+              }
+            }
+          },
+          "else": {
+            "actions": {
+              "Condition_1": {
+                "type": "If",
+                "expression": {
+                  "and": [
+                    {
+                      "equals": [
+                        "@first(body('Parse_JSON')?['results'])?['state']",
+                        "Processing"
+                      ]
+                    }
+                  ]
+                },
+                "actions": {
+                  "HTTP_1-copy": {
+                    "type": "Http",
+                    "inputs": {
+                      "uri": "https://testtopic.canadaeast-1.eventgrid.azure.net/api/events",
+                      "method": "POST",
+                      "headers": {
+                        "aeg-sas-key": "YOUR-KEY-HERE"
+                      },
+                      "body": [
+                        {
+                          "id": "unique-id-for-event",
+                          "eventType": "VideoIndexer.Processing",
+                          "subject": "/videoindexer/videos/video-id",
+                          "eventTime": "2024-06-25T19:42:20Z",
+                          "data": {
+                            "videoId": "video-id",
+                            "state": "Processed",
+                            "details": "The video has been processed successfully."
+                          },
+                          "dataVersion": "1.0"
+                        }
+                      ]
+                    },
+                    "runtimeConfiguration": {
+                      "contentTransfer": {
+                        "transferMode": "Chunked"
+                      }
+                    }
+                  }
+                },
+                "else": {
+                  "actions": {}
+                }
+              }
+            }
+          },
+          "runAfter": {
+            "Parse_JSON": [
+              "SUCCEEDED"
+            ]
+          }
+        }
+      },
+      "contentVersion": "1.0.0.0",
+      "outputs": {},
+      "triggers": {
+        "Recurrence": {
+          "type": "Recurrence",
+          "recurrence": {
+            "interval": 1,
+            "frequency": "Minute",
+            "timeZone": "Eastern Standard Time"
+          }
+        }
+      }
+    },
+    "connectionReferences": {},
+    "parameters": {}
+  }
